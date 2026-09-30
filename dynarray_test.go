@@ -2,6 +2,7 @@ package dynarray
 
 import (
 	"fmt"
+	"iter"
 	"math"
 	"testing"
 
@@ -921,6 +922,41 @@ func TestNearMaxInt(t *testing.T) {
 	assert.Equal(t, math.MaxInt-4, dyn.Len())
 }
 
+func TestAllAndAllFrom(t *testing.T) {
+	var dyn DynArray[string]
+	iter := dyn.All()
+	assert.Empty(t, iterToMap(iter))
+	dyn.Set(2, "do")
+	dyn.Set(5, "re")
+	dyn.Set(10, "mi")
+	assert.Equal(
+		t,
+		map[int]string{2: "do", 5: "re", 10: "mi"},
+		iterToMap(iter))
+	dyn.Set(1, "fa")
+	assert.Equal(
+		t,
+		map[int]string{1: "fa", 2: "do", 5: "re", 10: "mi"},
+		iterToMap(iter))
+	assert.Equal(
+		t,
+		map[int]string{1: "fa", 2: "do"},
+		iterToMapTo(iter, 3))
+	assert.Equal(
+		t,
+		map[int]string{5: "re", 10: "mi"},
+		iterToMap(dyn.AllFrom(5)))
+	assert.Equal(
+		t,
+		map[int]string{10: "mi"},
+		iterToMap(dyn.AllFrom(10)))
+	assert.Empty(t, iterToMap(dyn.AllFrom(12)))
+	assert.Equal(
+		t,
+		map[int]string{1: "fa", 2: "do", 5: "re", 10: "mi"},
+		iterToMap(dyn.AllFrom(0)))
+}
+
 func verify[T any](c *Cursor[T]) string {
 	c.checkBasic()
 	if result := verifyCursorPiecesLen(c); result != "" {
@@ -982,13 +1018,24 @@ func verifyCursorPiece[T any](c *Cursor[T], idx int) string {
 }
 
 func toMap[T any](d *DynArray[T]) map[int]T {
+	return iterToMap(d.All())
+}
+
+func iterToMap[T any](it iter.Seq2[int, T]) map[int]T {
 	result := make(map[int]T)
-	c, ok := d.FirstValue()
-	if ok {
-		defer c.Close()
+	for index, value := range it {
+		result[index] = value
 	}
-	for ; ok; ok = c.NextValue() {
-		result[c.Index()] = c.GetValue()
+	return result
+}
+
+func iterToMapTo[T any](it iter.Seq2[int, T], to int) map[int]T {
+	result := make(map[int]T)
+	for index, value := range it {
+		if index >= to {
+			break
+		}
+		result[index] = value
 	}
 	return result
 }

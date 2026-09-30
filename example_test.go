@@ -64,17 +64,13 @@ func ExampleDynArray_Delete() {
 	// mi
 }
 
-func ExampleDynArray_FirstValue() {
+func ExampleDynArray_All() {
 	var dyn dynarray.DynArray[string]
 	dyn.Set(2, "do")
 	dyn.Set(5, "re")
 	dyn.Set(10, "mi")
-	c, ok := dyn.FirstValue()
-	if ok {
-		defer c.Close()
-	}
-	for ; ok; ok = c.NextValue() {
-		fmt.Println(c.Index(), c.GetValue())
+	for index, value := range dyn.All() {
+		fmt.Println(index, value)
 	}
 	// Output:
 	// 2 do

@@ -3,6 +3,7 @@ package dynarray
 
 import (
 	"errors"
+	"iter"
 )
 
 const kSkipFactor = 5
@@ -157,7 +158,7 @@ func (d *DynArray[T]) GetOrElse(index int, defaultValue T) T {
 }
 
 // NewCursor returns a new cursor pointing at index 1 of this DynArray.
-// It is the same as d.NewCursorAt(1).
+// It is equivalent to d.NewCursorAt(1).
 func (d *DynArray[T]) NewCursor() *Cursor[T] {
 	return d.NewCursorAt(1)
 }
@@ -189,6 +190,34 @@ func (d *DynArray[T]) FirstValue() (*Cursor[T], bool) {
 	firstIndex := d.nodeLists[0].next.indexIncr
 	result := d.NewCursorAt(firstIndex)
 	return result, true
+}
+
+// All returns the 1 based index and value of each element in this DynArray
+// from beginning to end. It is equivalent to d.AllFrom(1).
+func (d *DynArray[T]) All() iter.Seq2[int, T] {
+	return d.AllFrom(1)
+}
+
+// AllFrom returns the 1 based index and value of each element in this
+// DynArray starting at index.
+func (d *DynArray[T]) AllFrom(index int) iter.Seq2[int, T] {
+	startIndex := index
+	if startIndex <= 0 {
+		startIndex = 1
+	}
+	return func(yield func(int, T) bool) {
+		c := d.NewCursorAt(startIndex)
+		defer c.Close()
+		_, ok := c.Get()
+		if !ok {
+			ok = c.NextValue()
+		}
+		for ; ok; ok = c.NextValue() {
+			if !yield(c.Index(), c.GetValue()) {
+				return
+			}
+		}
+	}
 }
 
 // levelCountForNewValueNode returns how many levels up the new value node

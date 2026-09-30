@@ -42,4 +42,4 @@ func main() {
 }
 ```
 
-Documentation and examples can be found [here](https://pkg.go.dev/github.com/keep94/dynarray).
+More documentation and examples can be found [here](https://pkg.go.dev/github.com/keep94/dynarray).
