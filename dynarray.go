@@ -435,13 +435,21 @@ func (c *Cursor[T]) Goto(index int) {
 // Cursor. Calling methods on a closed cursor besides the Close and IsClosed
 // methods panics.
 func (c *Cursor[T]) Close() {
-	delete(c.array.cursors, c)
+	if c.IsClosed() {
+		return
+	}
+	c.unregister()
+	c.cursorPieces = nil
+	c.array = nil
 }
 
 // IsClosed returns true if this cursor has been closed
 func (c *Cursor[T]) IsClosed() bool {
-	_, ok := c.array.cursors[c]
-	return !ok
+	return c.array == nil
+}
+
+func (c *Cursor[T]) unregister() {
+	delete(c.array.cursors, c)
 }
 
 func (c *Cursor[T]) hasNextValue() bool {
@@ -475,7 +483,7 @@ func (c *Cursor[T]) invalidateOtherCursorsForDelete(deletePoint, count int) {
 			continue
 		}
 		if cursor.index >= deletePoint && cursor.index < deletePoint+count {
-			delete(c.array.cursors, cursor)
+			cursor.Close()
 			continue
 		}
 		cursor.valid = false
