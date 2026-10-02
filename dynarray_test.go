@@ -393,6 +393,62 @@ func TestIterateValues(t *testing.T) {
 	assert.Empty(t, verify(c))
 }
 
+func TestSnapshot(t *testing.T) {
+	dyn := New[int](1000)
+	for i := range 31 {
+		dyn.Set((i+1)*(i+1), i+1)
+	}
+	s := dyn.MakeSnapshot()
+	dyn.Insert(1, 100) // s remains unchanged even though we modified dyn.
+	assert.Equal(t, 1, s.GetOrElse(1, 0))
+	assert.Equal(t, 0, s.GetOrElse(2, 0))
+	assert.Equal(t, 0, s.GetOrElse(3, 0))
+	assert.Equal(t, 2, s.GetOrElse(4, 0))
+	assert.Equal(t, 31, s.GetOrElse(961, 0))
+	assert.Equal(t, 0, s.GetOrElse(962, 0))
+	assert.Equal(t, 1000, s.Len())
+	assert.Panics(t, func() { s.GetOrElse(0, 0) })
+	assert.Equal(
+		t,
+		map[int]int{841: 29, 900: 30, 961: 31},
+		iterToMap(s.AllFrom(840)))
+	it := s.AllFrom(841)
+	assert.Equal(
+		t,
+		map[int]int{841: 29, 900: 30, 961: 31},
+		iterToMap(it))
+	assert.Equal(
+		t,
+		map[int]int{841: 29, 900: 30},
+		iterToMapTo(it, 961))
+	assert.Equal(
+		t,
+		map[int]int{961: 31},
+		iterToMap(s.AllFrom(961)))
+	assert.Empty(
+		t,
+		iterToMap(s.AllFrom(962)))
+	assert.Equal(t, 31, len(iterToMap(s.All())))
+	assert.Equal(t, 31, len(iterToMap(s.AllFrom(0))))
+}
+
+func TestFromSnapshot(t *testing.T) {
+	dyn := New[int](1000)
+	for i := range 31 {
+		dyn.Set((i+1)*(i+1), i+1)
+	}
+	dynCopy := FromSnapshot(dyn.MakeSnapshot())
+	assert.Equal(t, toMap(dyn), toMap(dynCopy))
+	assert.Equal(t, dyn.Len(), dynCopy.Len())
+}
+
+func TestZeroSnapshot(t *testing.T) {
+	var s Snapshot[string]
+	assert.Zero(t, s.Len())
+	assert.Equal(t, "novalue", s.GetOrElse(1, "novalue"))
+	assert.Empty(t, iterToMap(s.All()))
+}
+
 func TestDelete(t *testing.T) {
 	dyn := New[int](1000)
 	for i := range 31 {

@@ -4,6 +4,7 @@ package dynarray
 import (
 	"errors"
 	"iter"
+	"sort"
 )
 
 const kSkipFactor = 5
@@ -65,6 +66,18 @@ func New[T any](length int) *DynArray[T] {
 		cursors:   make(map[*Cursor[T]]struct{}),
 		length:    length,
 	}
+}
+
+// FromSnapshot builds a new DynArray from a Snapshot.
+func FromSnapshot[T any](s Snapshot[T]) *DynArray[T] {
+	result := New[T](s.Len())
+	c := result.NewCursor()
+	defer c.Close()
+	for index, value := range s.All() {
+		c.Goto(index)
+		c.Set(value)
+	}
+	return result
 }
 
 // Len returns the length of this DynArray, which is the highest index. Len
@@ -220,6 +233,18 @@ func (d *DynArray[T]) AllFrom(index int) iter.Seq2[int, T] {
 	}
 }
 
+// MakeSnapshot makes a snapshot of this DynArray. It takes O(k) time where
+// k is the number of actual values in this DynArray.
+func (d *DynArray[T]) MakeSnapshot() Snapshot[T] {
+	var buffer []indexValue[T]
+	for index, value := range d.All() {
+		buffer = append(buffer, indexValue[T]{index: index, value: value})
+	}
+	result := make([]indexValue[T], 0, len(buffer))
+	result = append(result, buffer...)
+	return Snapshot[T]{contents: result, length: d.length}
+}
+
 // levelCountForNewValueNode returns how many levels up the new value node
 // should extend into the node tree heirarchy. 1 means just the value node in
 // linked list 0; 2 means also add a node in linked list 1 etc.
@@ -243,6 +268,77 @@ func (d *DynArray[T]) setSize(newSize int) error {
 	d.length = newSize
 	d.nodeLists = adjustNodeListsLength(d.nodeLists, maxLevels(d.length))
 	return nil
+}
+
+// Snapshot is an immutable snapshot of a DynArray's data. Unlike a DynArray,
+// a Snapshot is safe to use with multiple goroutines. Index access and
+// iteration are much faster with Snapshots than with DynArrays because
+// Snapshots don't support modification. However, creating a Snapshot takes
+// O(k) time where k is the number of actual values in the DynArray.
+//
+// The zero value of Snapshot has 0 length and contains no actual values.
+// Programs should pass Snapshot instances as values, not pointers.
+type Snapshot[T any] struct {
+	contents []indexValue[T]
+	length   int
+}
+
+// Len returns the length of this Snapshot.
+func (s Snapshot[T]) Len() int {
+	return s.length
+}
+
+// Get returns the value at given index. This operation takes O(log n) time.
+// If index has no value, Get returns false. Get panics if index <= 0.
+func (s Snapshot[T]) Get(index int) (T, bool) {
+	if index <= 0 {
+		panic(kIndexMustBePositive)
+	}
+	idx := s.find(index)
+	if idx == len(s.contents) || s.contents[idx].index > index {
+		var result T
+		return result, false
+	}
+	return s.contents[idx].value, true
+}
+
+// GetOrElse works like Get, but it returns defaultValue if index has no
+// value.
+func (s Snapshot[T]) GetOrElse(index int, defaultValue T) T {
+	result, ok := s.Get(index)
+	if ok {
+		return result
+	}
+	return defaultValue
+}
+
+// All returns the 1 based index and value of each element in this Snapshot
+// from beginning to end. It is equivalent to s.AllFrom(1).
+func (s Snapshot[T]) All() iter.Seq2[int, T] {
+	return s.AllFrom(1)
+}
+
+// AllFrom returns the 1 based index and value of each element in this
+// Snapshot starting at index.
+func (s Snapshot[T]) AllFrom(index int) iter.Seq2[int, T] {
+	startIdx := s.find(index)
+	return func(yield func(int, T) bool) {
+		for idx := startIdx; idx < len(s.contents); idx++ {
+			iv := &s.contents[idx]
+			if !yield(iv.index, iv.value) {
+				return
+			}
+		}
+	}
+}
+
+func (s Snapshot[T]) find(index int) int {
+	return sort.Search(
+		len(s.contents),
+		func(i int) bool {
+			return s.contents[i].index >= index
+		},
+	)
 }
 
 // Cursor points to a particular index in a DynArray. Accessing elements
@@ -623,6 +719,11 @@ func (c *Cursor[T]) backwardToIndex(desiredIndex int) {
 		}
 		c.cursorPieces[idx].forwardToIndex(desiredIndex)
 	}
+}
+
+type indexValue[T any] struct {
+	index int
+	value T
 }
 
 type node[T any] struct {

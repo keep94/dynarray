@@ -44,6 +44,42 @@ func BenchmarkIterateByIndexRandomInit1000(b *testing.B) {
 	}
 }
 
+func BenchmarkIterateSnapshot100(b *testing.B) {
+	dyn := New[int](100)
+	initDynArray(dyn)
+	s := dyn.MakeSnapshot()
+	for b.Loop() {
+		iterateSnapshot(s)
+	}
+}
+
+func BenchmarkIterateSnapshot1000(b *testing.B) {
+	dyn := New[int](1000)
+	initDynArray(dyn)
+	s := dyn.MakeSnapshot()
+	for b.Loop() {
+		iterateSnapshot(s)
+	}
+}
+
+func BenchmarkIterateSnapshotByIndex100(b *testing.B) {
+	dyn := New[int](100)
+	initDynArray(dyn)
+	s := dyn.MakeSnapshot()
+	for b.Loop() {
+		iterateSnapshotByIndex(s)
+	}
+}
+
+func BenchmarkIterateSnapshotByIndex1000(b *testing.B) {
+	dyn := New[int](1000)
+	initDynArray(dyn)
+	s := dyn.MakeSnapshot()
+	for b.Loop() {
+		iterateSnapshotByIndex(s)
+	}
+}
+
 func BenchmarkAddToEnd100(b *testing.B) {
 	for b.Loop() {
 		addToEnd(100)
@@ -112,6 +148,17 @@ func iterateByCursor(dyn *DynArray[int]) {
 func iterateByIndex(dyn *DynArray[int]) {
 	for i := 1; i <= dyn.Len(); i++ {
 		dyn.GetValue(i)
+	}
+}
+
+func iterateSnapshot(s Snapshot[int]) {
+	for range s.All() {
+	}
+}
+
+func iterateSnapshotByIndex(s Snapshot[int]) {
+	for i := 1; i <= s.Len(); i++ {
+		s.GetOrElse(i, 0)
 	}
 }
 
