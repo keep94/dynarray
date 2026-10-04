@@ -400,10 +400,10 @@ func TestSnapshot(t *testing.T) {
 	}
 	s := dyn.MakeSnapshot()
 	dyn.Insert(1, 100) // s remains unchanged even though we modified dyn.
-	assert.Equal(t, 1, s.GetOrElse(1, 0))
-	assert.Equal(t, 0, s.GetOrElse(2, 0))
-	assert.Equal(t, 0, s.GetOrElse(3, 0))
-	assert.Equal(t, 2, s.GetOrElse(4, 0))
+	assert.Equal(t, 1, s.GetOrElse(1, 999))
+	assert.Equal(t, 999, s.GetOrElse(2, 999))
+	assert.Equal(t, 0, s.GetValue(3))
+	assert.Equal(t, 2, s.GetValue(4))
 	assert.Equal(t, 31, s.GetOrElse(961, 0))
 	assert.Equal(t, 0, s.GetOrElse(962, 0))
 	assert.Equal(t, 1000, s.Len())

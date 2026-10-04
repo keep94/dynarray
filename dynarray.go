@@ -302,6 +302,14 @@ func (s Snapshot[T]) Get(index int) (T, bool) {
 	return s.contents[idx].value, true
 }
 
+// GetValue works like Get except it returns just a value. GetValue returns
+// the zero value if the index either has no value or the index has the zero
+// value.
+func (s Snapshot[T]) GetValue(index int) T {
+	result, _ := s.Get(index)
+	return result
+}
+
 // GetOrElse works like Get, but it returns defaultValue if index has no
 // value.
 func (s Snapshot[T]) GetOrElse(index int, defaultValue T) T {
