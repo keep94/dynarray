@@ -1013,6 +1013,154 @@ func TestAllAndAllFrom(t *testing.T) {
 		iterToMap(dyn.AllFrom(0)))
 }
 
+func TestLongInsert(t *testing.T) {
+	dyn := New[int](50)
+	for i := 1; i <= 50; i++ {
+		dyn.Set(i, 6*i)
+	}
+	dynExpected := New[int](150)
+	for i := 1; i <= 150; i++ {
+		dynExpected.Set(i, 2*i)
+	}
+	c := dyn.NewCursor()
+	defer c.Close()
+	value := 6
+	for c.Index() <= c.Len() {
+		c.Insert(2)
+		c.Advance(-2)
+		value -= 4
+		c.Set(value)
+		c.Advance(1)
+		value += 2
+		c.Set(value)
+		c.Advance(2)
+		value += 8 // There is a 6 gap on 2nd advance
+	}
+	assert.Empty(t, verify(c))
+	assert.Equal(t, toMap(dynExpected), toMap(dyn))
+	assert.Equal(t, dynExpected.Len(), dyn.Len())
+}
+
+func TestLongDelete(t *testing.T) {
+	dyn := New[int](150)
+	for i := 1; i <= 150; i++ {
+		dyn.Set(i, 2*i)
+	}
+	dynExpected := New[int](50)
+	for i := 1; i <= 50; i++ {
+		dynExpected.Set(i, 6*i)
+	}
+	c := dyn.NewCursor()
+	defer c.Close()
+	for c.Index() <= c.Len() {
+		c.Delete(2)
+		c.Advance(1)
+	}
+	assert.Empty(t, verify(c))
+	assert.Equal(t, toMap(dynExpected), toMap(dyn))
+	assert.Equal(t, dynExpected.Len(), dyn.Len())
+}
+
+func TestLongClear(t *testing.T) {
+	dyn := New[int](150)
+	for i := 1; i <= 150; i++ {
+		dyn.Set(i, 2*i)
+	}
+	dynExpected := New[int](150)
+	for i := 3; i <= 150; i += 3 {
+		dynExpected.Set(i, 2*i)
+	}
+	c := dyn.NewCursor()
+	defer c.Close()
+	for c.Index() <= c.Len() {
+		c.Clear()
+		c.Advance(1)
+		c.Clear()
+		c.Advance(2)
+	}
+	assert.Empty(t, verify(c))
+	assert.Equal(t, toMap(dynExpected), toMap(dyn))
+	assert.Equal(t, dynExpected.Len(), dyn.Len())
+}
+
+func TestLongInsertBackward(t *testing.T) {
+	dyn := New[int](50)
+	for i := 1; i <= 50; i++ {
+		dyn.Set(i, 6*i)
+	}
+	dynExpected := New[int](150)
+	for i := 1; i <= 150; i++ {
+		dynExpected.Set(i, 2*i)
+	}
+	c := dyn.NewCursorAt(50)
+	defer c.Close()
+	value := 300
+	c.Insert(2)
+	c.Advance(-2)
+	value -= 4
+	c.Set(value)
+	c.Advance(1)
+	value += 2
+	c.Set(value)
+	for c.Advance(-2) == nil {
+		value -= 4
+		c.Insert(2)
+		c.Advance(-2)
+		value -= 4
+		c.Set(value)
+		c.Advance(1)
+		value += 2
+		c.Set(value)
+	}
+	assert.Empty(t, verify(c))
+	assert.Equal(t, toMap(dynExpected), toMap(dyn))
+	assert.Equal(t, dynExpected.Len(), dyn.Len())
+}
+
+func TestLongDeleteBackward(t *testing.T) {
+	dyn := New[int](150)
+	for i := 1; i <= 150; i++ {
+		dyn.Set(i, 2*i)
+	}
+	dynExpected := New[int](50)
+	for i := 1; i <= 50; i++ {
+		dynExpected.Set(i, 6*i)
+	}
+	c := dyn.NewCursorAt(148)
+	defer c.Close()
+	c.Delete(2)
+	for c.Advance(-3) == nil {
+		c.Delete(2)
+	}
+	assert.Empty(t, verify(c))
+	assert.Equal(t, toMap(dynExpected), toMap(dyn))
+	assert.Equal(t, dynExpected.Len(), dyn.Len())
+}
+
+func TestLongClearBackward(t *testing.T) {
+	dyn := New[int](150)
+	for i := 1; i <= 150; i++ {
+		dyn.Set(i, 2*i)
+	}
+	dynExpected := New[int](150)
+	for i := 3; i <= 150; i += 3 {
+		dynExpected.Set(i, 2*i)
+	}
+	c := dyn.NewCursorAt(149)
+	defer c.Close()
+	c.Clear()
+	c.Advance(-1)
+	c.Clear()
+	for c.Advance(-2) == nil {
+		c.Clear()
+		c.Advance(-1)
+		c.Clear()
+	}
+	assert.Empty(t, verify(c))
+	assert.Equal(t, toMap(dynExpected), toMap(dyn))
+	assert.Equal(t, dynExpected.Len(), dyn.Len())
+}
+
 func verify[T any](c *Cursor[T]) string {
 	c.checkBasic()
 	if result := verifyCursorPiecesLen(c); result != "" {
