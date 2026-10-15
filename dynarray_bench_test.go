@@ -4,6 +4,38 @@ import (
 	"testing"
 )
 
+func BenchmarkAdvanceForward100(b *testing.B) {
+	dyn := New[int](100)
+	initDynArray(dyn)
+	for b.Loop() {
+		advanceForward(dyn)
+	}
+}
+
+func BenchmarkAdvanceForward1000(b *testing.B) {
+	dyn := New[int](1000)
+	initDynArray(dyn)
+	for b.Loop() {
+		advanceForward(dyn)
+	}
+}
+
+func BenchmarkAdvanceBackward100(b *testing.B) {
+	dyn := New[int](100)
+	initDynArray(dyn)
+	for b.Loop() {
+		advanceBackward(dyn)
+	}
+}
+
+func BenchmarkAdvanceBackward1000(b *testing.B) {
+	dyn := New[int](1000)
+	initDynArray(dyn)
+	for b.Loop() {
+		advanceBackward(dyn)
+	}
+}
+
 func BenchmarkIterateByCursor100(b *testing.B) {
 	dyn := New[int](100)
 	initDynArray(dyn)
@@ -135,13 +167,26 @@ func initDynArrayRandom(dyn *DynArray[int], skip int) {
 	}
 }
 
-func iterateByCursor(dyn *DynArray[int]) {
-	c, ok := dyn.FirstValue()
-	if ok {
-		defer c.Close()
+func advanceForward(dyn *DynArray[int]) {
+	c := dyn.NewCursor()
+	defer c.Close()
+	for c.Index() <= c.Len() {
+		c.Get()
+		c.Advance(1)
 	}
-	for ; ok; ok = c.NextValue() {
-		c.GetValue()
+}
+
+func advanceBackward(dyn *DynArray[int]) {
+	c := dyn.NewCursorAt(dyn.Len() + 1)
+	defer c.Close()
+	for c.Index() > 1 {
+		c.Advance(-1)
+		c.Get()
+	}
+}
+
+func iterateByCursor(dyn *DynArray[int]) {
+	for range dyn.All() {
 	}
 }
 
