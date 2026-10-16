@@ -88,7 +88,12 @@ func (d *DynArray[T]) Len() int {
 
 // Truncate makes the length of this DynArray be newLength. If newLength is
 // less than d.Len() any values past newLength get deleted. Truncate returns
-// an error if newLength is negative or bigger than math.MaxInt - 1.
+// an error if newLength is negative or bigger than math.MaxInt - 1. If
+// Truncate increases the length, then it moves any opened cursors pointing
+// past the end of the DynArray forward automatically. If truncate decreases
+// the length, then it moves any opened cursors pointing past the end of the
+// DynArray backward automatically and closes any cursors pointing to an index
+// that got deleted.
 func (d *DynArray[T]) Truncate(newLength int) error {
 	oldLength := d.length
 	if newLength < oldLength {
@@ -100,7 +105,8 @@ func (d *DynArray[T]) Truncate(newLength int) error {
 // Insert inserts count new indexes into this DynArray right before the given
 // index. The new indexes hold no value. This operation takes O(log n) time.
 // Insert returns an error if index <= 0 or index > d.Len() + 1.
-// index = d.Len() + 1 means insert past the end of the DynArray.
+// index = d.Len() + 1 means insert past the end of the DynArray. Insert moves
+// any opened cursors pointing at or after index forward automatically.
 func (d *DynArray[T]) Insert(index, count int) error {
 	if index <= 0 {
 		return kIndexMustBePositive
@@ -113,7 +119,9 @@ func (d *DynArray[T]) Insert(index, count int) error {
 // Delete deletes count indexes from this DynArray starting at index. This
 // operation takes O(log n + k) where k is the number of values deleted.
 // Delete returns an error if index <= 0 or if deleting count indexes would
-// go past the end of the DynArray.
+// go past the end of the DynArray. Delete moves any opened cursors pointing
+// at or after index+count backward automatically and closes any cursors
+// pointing to an index that got deleted.
 func (d *DynArray[T]) Delete(index, count int) error {
 	if index <= 0 {
 		return kIndexMustBePositive
@@ -405,9 +413,11 @@ func (c *Cursor[T]) Insert(count int) error {
 // Delete deletes count indexes starting at this cursor's index. This
 // operation takes O(k + log n) time where k is the number of actual values
 // deleted. Other Cursors that point to an index after the ones that got
-// deleted get moved up by count automatically. If a cursor points to an
-// index that got deleted, it is automatically closed. Delete returns an
-// error if there are fewer than count indexes before the end.
+// deleted get moved backward by count automatically. If another cursor
+// points to an index that got deleted, it is automatically closed. Delete
+// returns an error if there are fewer than count indexes before the end of
+// the DynArray. At the end of this operation, this cursor points to the same
+// index it did before, so it will point just past what got deleted.
 func (c *Cursor[T]) Delete(count int) error {
 	c.checkBasic()
 	if count < 0 {
