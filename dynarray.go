@@ -519,11 +519,10 @@ func (c *Cursor[T]) Advance(count int) error {
 	}
 	if count > 0 {
 		c.forwardToIndex(c.index + count)
-		c.index += count
 	} else if count < 0 {
 		c.backwardToIndex(c.index + count)
-		c.index += count
 	}
+	c.index += count
 	return nil
 }
 
@@ -539,7 +538,7 @@ func (c *Cursor[T]) Goto(index int) {
 // Cursor. Calling methods on a closed cursor besides the Close and IsClosed
 // methods panics.
 func (c *Cursor[T]) Close() {
-	if c.IsClosed() {
+	if c.array == nil {
 		return
 	}
 	c.unregister()
@@ -680,29 +679,27 @@ func (c *Cursor[T]) checkCursorPieces() {
 }
 
 func (c *Cursor[T]) checkNotClosed() {
-	if c.IsClosed() {
+	if c.array == nil {
 		panic("Cursor closed")
 	}
 }
 
 func (c *Cursor[T]) findFirstNoForwardLevel(desiredIndex int) int {
-	var idx int
-	for idx = 0; idx < len(c.cursorPieces); idx++ {
+	for idx := range c.cursorPieces {
 		if c.cursorPieces[idx].ptr.next == nil || c.cursorPieces[idx].nextIndex() > desiredIndex {
-			break
+			return idx
 		}
 	}
-	return idx
+	return len(c.cursorPieces)
 }
 
 func (c *Cursor[T]) findFirstNoBackwardLevel(desiredIndex int) int {
-	var idx int
-	for idx = 0; idx < len(c.cursorPieces); idx++ {
+	for idx := range c.cursorPieces {
 		if c.cursorPieces[idx].indexSoFar <= desiredIndex {
-			break
+			return idx
 		}
 	}
-	return idx
+	return len(c.cursorPieces)
 }
 
 func (c *Cursor[T]) forwardToIndex(desiredIndex int) {
