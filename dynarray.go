@@ -247,6 +247,7 @@ func (d *DynArray[T]) AllFrom(index int) iter.Seq2[int, T] {
 		c := d.NewCursorAt(startIndex)
 		defer c.Close()
 		_, ok := c.Get()
+		c.optimizeForIteration()
 		if !ok {
 			ok = c.NextValue()
 		}
@@ -267,6 +268,7 @@ func (d *DynArray[T]) allPtrsFrom(index int) iter.Seq2[int, *T] {
 		c := d.NewCursorAt(startIndex)
 		defer c.Close()
 		ok := c.getPtr() != nil
+		c.optimizeForIteration()
 		if !ok {
 			ok = c.NextValue()
 		}
@@ -604,6 +606,12 @@ func (c *Cursor[T]) Close() {
 // IsClosed returns true if this cursor has been closed
 func (c *Cursor[T]) IsClosed() bool {
 	return c.array == nil
+}
+
+func (c *Cursor[T]) optimizeForIteration() {
+	if len(c.cursorPieces) > 1 {
+		c.cursorPieces = c.cursorPieces[:1]
+	}
 }
 
 func (c *Cursor[T]) unregister() {
