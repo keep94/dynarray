@@ -148,6 +148,22 @@ func BenchmarkInsertDeleteOneIn10000(b *testing.B) {
 	}
 }
 
+func BenchmarkSort100(b *testing.B) {
+	dyn := New[int](100)
+	initDynArrayRandom(dyn, 77)
+	for b.Loop() {
+		sortDyn(dyn)
+	}
+}
+
+func BenchmarkSort1000(b *testing.B) {
+	dyn := New[int](1000)
+	initDynArrayRandom(dyn, 377)
+	for b.Loop() {
+		sortDyn(dyn)
+	}
+}
+
 func BenchmarkCreateCursor(b *testing.B) {
 	dyn := New[int](1000)
 	for b.Loop() {
@@ -163,7 +179,7 @@ func initDynArray(dyn *DynArray[int]) {
 
 func initDynArrayRandom(dyn *DynArray[int], skip int) {
 	for i := 1; i <= dyn.Len(); i++ {
-		dyn.Set((skip*i-1)%dyn.Len()+1, 1)
+		dyn.Set((skip*i-1)%dyn.Len()+1, i)
 	}
 }
 
@@ -228,4 +244,8 @@ func insertDeleteOneIn(dyn *DynArray[int], index int) {
 func createCursor(dyn *DynArray[int]) {
 	c := dyn.NewCursor()
 	defer c.Close()
+}
+
+func sortDyn(dyn *DynArray[int]) {
+	dyn.Sort(1, dyn.Len()+1, func(x, y int) bool { return x < y })
 }

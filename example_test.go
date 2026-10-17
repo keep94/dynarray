@@ -6,6 +6,31 @@ import (
 	"github.com/keep94/dynarray"
 )
 
+func ExampleDynArray_Sort() {
+	var dyn dynarray.DynArray[string]
+	dyn.Set(1, "do")
+	dyn.Set(2, "re")
+	dyn.Set(3, "mi")
+	dyn.Set(5, "fa")
+	dyn.Set(6, "so")
+	dyn.Set(7, "la")
+	dyn.Set(8, "ti")
+
+	dyn.Sort(1, dyn.Len()+1, func(x, y string) bool { return x < y })
+
+	for index, value := range dyn.All() {
+		fmt.Println(index, value)
+	}
+	// Output:
+	// 1 do
+	// 2 fa
+	// 3 la
+	// 5 mi
+	// 6 re
+	// 7 so
+	// 8 ti
+}
+
 func ExampleDynArray_GetOrElse() {
 	var dyn dynarray.DynArray[string]
 	dyn.Set(1, "do")

@@ -19,6 +19,9 @@ var (
 		"Insert would overflow length")
 )
 
+// LessFunc compares two T instances and returns true if lhs is less than rhs.
+type LessFunc[T any] func(lhs, rhs T) bool
+
 // DynArray works like regular arrays except for the following differences:
 //
 //  1. Indexing is one based.
@@ -84,6 +87,20 @@ func FromSnapshot[T any](s Snapshot[T]) *DynArray[T] {
 // is not to be confused with the number of values stored in this DynArray.
 func (d *DynArray[T]) Len() int {
 	return d.length
+}
+
+// Sort sorts the values in this DynArray in place from startIndex inclusive
+// to endIndex exclusive. Sort ignores indexes with no values and sorts only
+// the indexes that have a value.
+func (d *DynArray[T]) Sort(startIndex, endIndex int, less LessFunc[T]) {
+	var ptrs []*T
+	for index, p := range d.allPtrsFrom(startIndex) {
+		if index >= endIndex {
+			break
+		}
+		ptrs = append(ptrs, p)
+	}
+	sort.Sort(&sortable[T]{data: ptrs, less: less})
 }
 
 // Truncate makes the length of this DynArray be newLength. If newLength is
@@ -235,6 +252,26 @@ func (d *DynArray[T]) AllFrom(index int) iter.Seq2[int, T] {
 		}
 		for ; ok; ok = c.NextValue() {
 			if !yield(c.Index(), c.GetValue()) {
+				return
+			}
+		}
+	}
+}
+
+func (d *DynArray[T]) allPtrsFrom(index int) iter.Seq2[int, *T] {
+	startIndex := index
+	if startIndex <= 0 {
+		startIndex = 1
+	}
+	return func(yield func(int, *T) bool) {
+		c := d.NewCursorAt(startIndex)
+		defer c.Close()
+		ok := c.getPtr() != nil
+		if !ok {
+			ok = c.NextValue()
+		}
+		for ; ok; ok = c.NextValue() {
+			if !yield(c.Index(), c.getPtr()) {
 				return
 			}
 		}
@@ -485,6 +522,14 @@ func (c *Cursor[T]) Get() (T, bool) {
 		return result, false
 	}
 	return c.cursorPieces[0].ptr.value, true
+}
+
+func (c *Cursor[T]) getPtr() *T {
+	c.checkBasic()
+	if !c.hasValue() {
+		return nil
+	}
+	return &c.cursorPieces[0].ptr.value
 }
 
 // GetValue works like Get except it returns just the value. GetValue returns
@@ -812,4 +857,19 @@ func adjustNodeListsLength[T any](nodeLists []*node[T], length int) []*node[T] {
 		nodeLists = nodeLists[:ln-1]
 	}
 	return nodeLists
+}
+
+type sortable[T any] struct {
+	data []*T
+	less LessFunc[T]
+}
+
+func (s *sortable[T]) Len() int { return len(s.data) }
+
+func (s *sortable[T]) Less(i, j int) bool {
+	return s.less(*s.data[i], *s.data[j])
+}
+
+func (s *sortable[T]) Swap(i, j int) {
+	*s.data[i], *s.data[j] = *s.data[j], *s.data[i]
 }

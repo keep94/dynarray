@@ -1161,6 +1161,40 @@ func TestLongClearBackward(t *testing.T) {
 	assert.Equal(t, dynExpected.Len(), dyn.Len())
 }
 
+func TestSort(t *testing.T) {
+	var dyn DynArray[string]
+	dyn.Set(1, "do")
+	dyn.Set(3, "re")
+	dyn.Set(5, "mi")
+	dyn.Set(7, "fa")
+	dyn.Set(9, "so")
+	dyn.Set(11, "la")
+	dyn.Set(13, "ti")
+	dyn.Set(15, "do")
+
+	dyn.Sort(3, 11, func(lhs, rhs string) bool { return lhs < rhs })
+
+	assert.Equal(
+		t,
+		map[int]string{1: "do", 3: "fa", 5: "mi", 7: "re", 9: "so", 11: "la", 13: "ti", 15: "do"},
+		toMap(&dyn))
+
+	dyn.Sort(10, 16, func(lhs, rhs string) bool { return lhs < rhs })
+
+	assert.Equal(
+		t,
+		map[int]string{1: "do", 3: "fa", 5: "mi", 7: "re", 9: "so", 11: "do", 13: "la", 15: "ti"},
+		toMap(&dyn))
+
+	dyn.Sort(0, 5, func(lhs, rhs string) bool { return lhs > rhs })
+
+	assert.Equal(
+		t,
+		map[int]string{1: "fa", 3: "do", 5: "mi", 7: "re", 9: "so", 11: "do", 13: "la", 15: "ti"},
+		toMap(&dyn))
+
+}
+
 func verify[T any](c *Cursor[T]) string {
 	c.checkBasic()
 	if result := verifyCursorPiecesLen(c); result != "" {
